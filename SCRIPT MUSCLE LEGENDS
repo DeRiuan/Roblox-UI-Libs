@@ -1,0 +1,161 @@
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+-- Proteção anti-detect
+if not game:IsLoaded() then game.Loaded:Wait() end
+pcall(function() setfpscap(60) end)
+
+-- GUI principal
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "MuscleModMenu"
+ScreenGui.ResetOnSpawn = false
+
+-- Arrastar (mobile/PC)
+local function makeDraggable(frame)
+	local dragToggle = false
+	local dragInput, mousePos, framePos
+
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragToggle = true
+			mousePos = input.Position
+			framePos = frame.Position
+
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragToggle = false
+				end
+			end)
+		end
+	end)
+
+	frame.InputChanged:Connect(function(input)
+		if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - mousePos
+			frame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+		end
+	end)
+end
+
+-- Janela principal
+local main = Instance.new("Frame", ScreenGui)
+main.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+main.Size = UDim2.new(0, 320, 0, 220)
+main.Position = UDim2.new(0.05, 0, 0.2, 0)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = false
+makeDraggable(main)
+
+local title = Instance.new("TextLabel", main)
+title.Text = "💪 Muscle Legends Mod Menu"
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+
+-- Abas
+local pages = {
+	Farm = Instance.new("Frame", main),
+	Teleport = Instance.new("Frame", main),
+	Boost = Instance.new("Frame", main)
+}
+for _, page in pairs(pages) do
+	page.Size = UDim2.new(1, 0, 1, -30)
+	page.Position = UDim2.new(0, 0, 0, 30)
+	page.BackgroundTransparency = 1
+	page.Visible = false
+end
+pages.Farm.Visible = true
+
+-- Botões de abas
+local tabNames = {"Farm", "Teleport", "Boost"}
+for i, name in pairs(tabNames) do
+	local btn = Instance.new("TextButton", main)
+	btn.Size = UDim2.new(0, 100, 0, 25)
+	btn.Position = UDim2.new(0, (i - 1) * 100, 0, 195)
+	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	btn.Text = name
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 14
+	btn.MouseButton1Click:Connect(function()
+		for _, page in pairs(pages) do page.Visible = false end
+		pages[name].Visible = true
+	end)
+end
+
+---------------------------------------------
+-- ABA FARM
+---------------------------------------------
+local autoTrain = false
+local autoRebirth = false
+
+local function createToggle(text, parent, callback)
+	local btn = Instance.new("TextButton", parent)
+	btn.Size = UDim2.new(0, 280, 0, 30)
+	btn.Position = UDim2.new(0, 20, 0, #parent:GetChildren() * 35)
+	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	btn.Text = "🔘 " .. text
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 14
+
+	local enabled = false
+	btn.MouseButton1Click:Connect(function()
+		enabled = not enabled
+		btn.Text = (enabled and "✅ " or "🔘 ") .. text
+		callback(enabled)
+	end)
+end
+
+createToggle("Auto Treino (5x)", pages.Farm, function(state)
+	autoTrain = state
+	while autoTrain and task.wait(0.2) do
+		local args = {[1] = "WeightedPushup"}
+		game:GetService("ReplicatedStorage").Events.Strength:FireServer(unpack(args))
+	end
+end)
+
+createToggle("Auto Rebirth", pages.Farm, function(state)
+	autoRebirth = state
+	while autoRebirth and task.wait(1) do
+		game:GetService("ReplicatedStorage").Rebirth:FireServer()
+	end
+end)
+
+---------------------------------------------
+-- ABA TELEPORT
+---------------------------------------------
+local teleportList = {
+	["Ilha Inicial"] = Vector3.new(35, 4, -50),
+	["Ilha Gelo"] = Vector3.new(-1000, 300, 100),
+	["Ilha Lava"] = Vector3.new(1200, 400, -800),
+	["Ilha Secreta"] = Vector3.new(9999, 999, 999)
+}
+
+for name, pos in pairs(teleportList) do
+	local btn = Instance.new("TextButton", pages.Teleport)
+	btn.Size = UDim2.new(0, 280, 0, 30)
+	btn.Position = UDim2.new(0, 20, 0, #pages.Teleport:GetChildren() * 35)
+	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	btn.Text = "📍 " .. name
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 14
+	btn.MouseButton1Click:Connect(function()
+		character:MoveTo(pos)
+	end)
+end
+
+---------------------------------------------
+-- ABA BOOST
+---------------------------------------------
+createToggle("Super Pulo", pages.Boost, function(state)
+	character.Humanoid.JumpPower = state and 150 or 50
+end)
+
+createToggle("Velocidade", pages.Boost, function(state)
+	character.Humanoid.WalkSpeed = state and 100 or 16
+end)
